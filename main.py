@@ -18,15 +18,13 @@ df_prices = yf.download(ticker, start=start_date, end=end_date)
 if isinstance(df_prices.columns, pd.MultiIndex):
     df_prices.columns = df_prices.columns.get_level_values(0)
 
-# 5. Extracting the data
+# 5. Extracting the date
 df_prices = df_prices.reset_index()
 df_prices['Date'] = pd.to_datetime(df_prices['Date']).dt.strftime('%Y-%m-%d')
 
-# === 3. משיכת נתוני שורט יומיים אמיתיים עם Headers של דפדפן ===
-print(f"מוריד ומעבד נתוני שורט יומיים ממאגר FINRA עבור {ticker}...")
+print(f"Downloading data from FINRA for stock {ticker}...")
 short_data_list = []
 
-# הגדרת כותרות דפדפן כדי לעקוף את החסימה של שרתי FINRA
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
@@ -37,11 +35,11 @@ try:
     current_dt = start_dt
     
     while current_dt <= end_dt:
-        if current_dt.weekday() < 5:  # ימי חול בלבד
+        if current_dt.weekday() < 5:  # Only working days
             date_str = current_dt.strftime("%Y%m%d")
             date_dash = current_dt.strftime("%Y-%m-%d")
             
-            # סריקת המקורות (Consolidated קודם, אז NYSE)
+            # Searching the different sources
             finra_urls = [
                 f"https://regsho.finra.org/CNMSshvol{date_str}.txt",
                 f"https://regsho.finra.org/FNYXshvol{date_str}.txt",
@@ -73,21 +71,21 @@ try:
                                 'ShortVolume': short_vol,
                                 'TotalVolume': total_vol
                             })
-                            break  # מצאנו נתון ליום זה, עוברים ליום הבא
+                            break  # Data was fetched for this day. Moving to the next day
                 except Exception:
-                    continue  # נכשלו ב-URL ספציפי? עוברים לבא בתור
+                    continue  # We weren't able to fetch from this URL. Moving to the next one
                     
         current_dt += timedelta(days=1)
 
     if short_data_list:
         df_short_api = pd.DataFrame(short_data_list)
         has_real_short = True
-        print(f"הורדה הושלמה בהצלחה! נמצאו נתוני שורט אמת עבור {len(df_short_api)} ימי מסחר.")
+        print(f"Download completed! Data was found for {len(df_short_api)} trading days.")
     else:
-        raise Exception("השרתים החזירו תשובות אך הטיקר לא נמצא בפנים או שכל הבקשות נחסמו")
+        raise Exception("Error: Ticker was not found in the returned answer")
 
 except Exception as e:
-    print(f"לא ניתן היה למשוך נתוני שורט מהשרת הסטטי, משתמש במודול חישוב דינמי: {e}")
+    print(f"Error: Static server didn't fetch relevant data: {e}")
     has_real_short = False
 
 # 5. מיזוג נתוני השורט וחישוב היחס היומי
@@ -101,7 +99,7 @@ if has_real_short:
     
     df_final['Daily_Short_Ratio_%'] = ((df_final['ShortVolume'] / df_final['TotalVolume']) * 100).round(2)
 else:
-    print("מפעיל מודול הערכה דינמי חלופי...")
+    print("Using alternative dynamic short estimator...")
     volume_series = df_prices['Volume'].squeeze()
     df_prices['Daily_Short_Ratio_%'] = (45.0 + (volume_series / volume_series.mean()) * 3.5).round(2).clip(30.0, 68.0)
     df_prices['ShortVolume'] = (volume_series * (df_prices['Daily_Short_Ratio_%'] / 100)).astype(int)
@@ -111,7 +109,7 @@ else:
 # מיון מהחדש לישן
 df_final = df_final.sort_values(by='Date', ascending=False)
 
-# 6. שמירה לקובץ אקסל נקי ומיושר
+# Exporting to excel file
 filename = f"{ticker}_daily_prices_fixed.xlsx"
 df_final.to_excel(filename, index=False, sheet_name="MXL Data")
-print(f"הקובץ המתוקן נשמר בהצלחה תחת השם: {filename}")
+print(f"The new file was saved as: {filename}")
