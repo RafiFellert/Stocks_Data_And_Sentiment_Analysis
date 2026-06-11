@@ -4,20 +4,21 @@ import pandas as pd
 import requests
 from io import StringIO
 
-# 1. הגדרת טווח התאריכים המדויק (שנת 2026)
+# 1. Defining range of dates for data collection
 start_date = "2026-01-15"
 end_date = "2026-02-15"
+# 2. Defining the target stock
 ticker = "MXL"
 
-# 2. הורדת נתוני מחיר מ-yfinance
-print(f"מוריד נתוני מחיר עבור {ticker}...")
+# 3. Downloading data from yahoo finance
+print(f"Downloading data for {ticker}...")
 df_prices = yf.download(ticker, start=start_date, end=end_date)
 
-# השטחת ה-MultiIndex בעמודות ש-yfinance מייצר
+# 4. Modifying the MultiIndex to columns
 if isinstance(df_prices.columns, pd.MultiIndex):
     df_prices.columns = df_prices.columns.get_level_values(0)
 
-# חילוץ התאריך מה-Index לעמודה רגילה
+# 5. Extracting the data
 df_prices = df_prices.reset_index()
 df_prices['Date'] = pd.to_datetime(df_prices['Date']).dt.strftime('%Y-%m-%d')
 
