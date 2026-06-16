@@ -106,7 +106,7 @@ else:
     df_prices['TotalVolume'] = volume_series.astype(int)
     df_final = df_prices
 
-# מיון מהחדש לישן
+# Sorting by date
 df_final = df_final.sort_values(by='Date', ascending=False)
 
 # Exporting to excel file
