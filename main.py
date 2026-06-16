@@ -111,5 +111,5 @@ df_final = df_final.sort_values(by='Date', ascending=False)
 
 # Exporting to excel file
 filename = f"{ticker}_daily_prices_fixed.xlsx"
-df_final.to_excel(filename, index=False, sheet_name="MXL Data")
+df_final.to_excel(filename, index=False, sheet_name=f"{ticker} Data")
 print(f"The new file was saved as: {filename}")
