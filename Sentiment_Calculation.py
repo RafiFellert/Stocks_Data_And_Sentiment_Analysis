@@ -1,4 +1,4 @@
-!pip install vaderSentiment
+pip install vaderSentiment
 import pandas as pd
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from transformers import pipeline
@@ -7,13 +7,13 @@ from transformers import pipeline
 # 1. LOAD YOUR FILES
 # ====================================================
 # Update these file names and column names to match yours exactly
-reddit_file = "sample_data/bynd_oct_2025_reddit.xlsx"  # File with your raw Reddit posts
-price_file = "sample_data/BYND_daily_prices_oct_2025.xlsx" # File with Volume, Daily_Change, etc.
-text_column = 'Content'                   # Name of the column containing the text
-ticker = "BYND"
+social_media_data_file = "sample_data/bynd_oct_2025_reddit.xlsx"  # File with your raw Reddit posts
+financial_data_file    = "sample_data/BYND_daily_prices_oct_2025.xlsx" # File with Volume, Daily_Change, etc.
+text_column            = 'Content' # Name of the column containing the text
+ticker                 = "BYND"
 
-df_reddit = pd.read_excel(reddit_file)
-df_price = pd.read_excel(price_file)
+df_reddit = pd.read_excel(social_media_data_file)
+df_price  = pd.read_excel(financial_data_file)
 
 # Ensure text data is string format
 df_reddit[text_column] = df_reddit[text_column].astype(str).fillna('')
