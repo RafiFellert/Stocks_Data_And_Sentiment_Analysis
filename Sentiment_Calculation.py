@@ -7,7 +7,7 @@ from transformers import pipeline
 # 1. LOAD YOUR FILES
 # ====================================================
 # Update these file names and column names to match yours exactly
-social_media_data_file = "<file_name>.xlsx"  # File with your raw Reddit posts
+social_media_data_file = "<file_name>.xlsx" # File with your raw Reddit posts (file should have 2 columns: 'Date' and 'Content')
 financial_data_file    = "<file_name>.xlsx" # File with Volume, Daily_Change, etc.
 text_column            = 'Content' # Name of the column containing the text
 ticker                 = "BYND"
