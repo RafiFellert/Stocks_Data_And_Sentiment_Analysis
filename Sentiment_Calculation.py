@@ -1,4 +1,3 @@
-#BYND, combining stock prices and sentiment
 !pip install vaderSentiment
 import pandas as pd
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
@@ -11,6 +10,7 @@ from transformers import pipeline
 reddit_file = "sample_data/bynd_oct_2025_reddit.xlsx"  # File with your raw Reddit posts
 price_file = "sample_data/BYND_daily_prices_oct_2025.xlsx" # File with Volume, Daily_Change, etc.
 text_column = 'Content'                   # Name of the column containing the text
+ticker = "BYND"
 
 df_reddit = pd.read_excel(reddit_file)
 df_price = pd.read_excel(price_file)
@@ -95,6 +95,6 @@ print(non_neutral_rows.to_string(index=False))
 # ====================================================
 # 6. SAVE THE FINAL FILE
 # ====================================================
-output_file = "BYND_master_combined.xlsx"
+output_file = f"{ticker}_master_combined.xlsx"
 master_df.to_excel(output_file, index=False)
 print(f"Done! Your unified dataset is saved as: {output_file}")
