@@ -26,4 +26,9 @@ df.rename(columns={
     "Close": "EndPrice"
 }, inplace=True)
 
+# Save to Excel
+filename = f"{ticker}_{start_date}.xlsx"
+df.to_excel(filename, index=False)
+
 print(df)
+print(f"\nData saved to: {filename}")
