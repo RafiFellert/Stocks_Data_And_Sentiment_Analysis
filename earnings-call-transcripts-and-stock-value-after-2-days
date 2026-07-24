@@ -1,0 +1,99 @@
+from datetime import datetime, timedelta
+from pathlib import Path
+import re
+import pandas as pd
+import yfinance as yf
+
+# ==========================================
+# CONFIGURATION / INPUTS
+# ==========================================
+folder_path = Path("sample_data/APPL")  # Folder containing your .txt files
+output_excel = "transcripts_with_returns.xlsx"
+default_ticker = "AAPL"  # Fallback ticker if none found in filename
+
+# Regex patterns:
+# 1. Matches dates formatted like 2016-Apr-26
+date_pattern = re.compile(r"(\d{4}-[A-Za-z]{3}-\d{2})")
+
+rows = []
+
+# ==========================================
+# 1. PROCESS TXT FILES
+# ==========================================
+print(f"Reading files from: {folder_path.resolve()}...")
+
+for file_path in folder_path.glob("*.txt"):
+    filename = file_path.name
+
+    # Extract Date from Filename
+    date_match = date_pattern.search(filename)
+    if date_match:
+        raw_date_str = date_match.group(1)  # e.g. "2016-Apr-26"
+        dt_obj = datetime.strptime(raw_date_str, "%Y-%b-%d")
+        formatted_date_str = dt_obj.strftime("%Y-%m-%d")
+    else:
+        dt_obj = None
+        formatted_date_str = None
+
+    # Read the text content of the file
+    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        file_content = f.read()
+
+    # Determine ticker (tries to grab from filename like '2016-Apr-26-AAPL.txt', defaults to default_ticker)
+    ticker_match = re.search(r"-[A-Za-z0-9]+\.txt$", filename)
+    if ticker_match:
+        ticker = ticker_match.group(0).replace("-", "").replace(".txt", "")
+    else:
+        ticker = default_ticker
+
+    # ==========================================
+    # 2. FETCH STOCK DATA (yfinance)
+    # ==========================================
+    is_price_up = "N/A"
+
+    if dt_obj:
+        start_dt = dt_obj
+        end_dt = start_dt + timedelta(days=1)
+
+        # Download stock data covering start_dt and end_dt
+        df_stock = yf.download(
+            ticker,
+            start=start_dt.strftime("%Y-%m-%d"),
+            end=(end_dt + timedelta(days=1)).strftime("%Y-%m-%d"),
+            auto_adjust=False,
+            progress=False,
+        )
+
+        if not df_stock.empty:
+            # Flatten MultiIndex columns if present
+            if isinstance(df_stock.columns, pd.MultiIndex):
+                df_stock.columns = df_stock.columns.get_level_values(0)
+
+            # Get Open price of the start date and Close price of the end date
+            start_open = float(df_stock["Open"].iloc[0])
+            end_close = float(df_stock["Close"].iloc[-1])
+
+            # Evaluate price movement
+            is_price_up = "YES" if end_close > start_open else "NO"
+        else:
+            is_price_up = "NO DATA"
+
+    # Append to list with the 3 target columns
+    rows.append(
+        {
+            "Date": formatted_date_str,
+            "TXT": file_content,
+            "Is Price UP": is_price_up,
+        }
+    )
+
+# ==========================================
+# 3. BUILD DATAFRAME & EXPORT
+# ==========================================
+final_df = pd.DataFrame(rows)
+
+# Save to Excel
+final_df.to_excel(output_excel, index=False)
+
+print(f"\nFinished! Processed {len(final_df)} files.")
+print(f"Excel generated: {output_excel}")
