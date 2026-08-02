@@ -142,37 +142,45 @@ for i, link in enumerate(links, 1):
         )
 
 
-      # -----------------------------
+    # -----------------------------
     # Create filename
     # Format: YYYY-Mon-DD-TICKER.txt
     # -----------------------------
 
-    filename = None
+    date_pattern = r'([A-Z][a-z]{2})\s+(\d{1,2}),\s+(\d{4})'
 
-    # Try to extract a date such as "Apr 24, 2025" from the title
-    date_match = re.search(
-        r'([A-Z][a-z]{2})\s+(\d{1,2}),\s+(\d{4})',
-        title
-    )
+    # 1. Try the title
+    date_match = re.search(date_pattern, title)
 
-    if date_match:
-        month, day, year = date_match.groups()
-        filename = f"{year}-{month}-{int(day):02d}-{TICKER.upper()}.txt"
+    # 2. If not found, look for the line immediately
+    #    following "Earnings Call:"
+    if not date_match:
 
-    else:
-        # Fallback: use year and quarter from the URL
-        q_match = re.search(
-            r'q([1-4])-(\d{4})',
-            link,
-            re.IGNORECASE
+        page_text = soup.get_text("\n", strip=True)
+
+        earnings_match = re.search(
+            r'Earnings Call:.*?\n([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4})',
+            page_text,
+            re.DOTALL
         )
 
-        if q_match:
-            quarter, year = q_match.groups()
-            filename = f"{year}-Q{quarter}-{TICKER.upper()}.txt"
-        else:
-            filename = f"Unknown-{TICKER.upper()}.txt"
+        if earnings_match:
+            date_match = re.search(
+                date_pattern,
+                earnings_match.group(1)
+            )
 
+    # 3. Create filename
+    if date_match:
+
+        month, day, year = date_match.groups()
+
+        filename = (
+            f"{year}-{month}-{int(day):02d}-{TICKER.upper()}.txt"
+        )
+
+    else:
+        print("didn't find date_match")
 
     # -----------------------------
     # Save transcript
