@@ -17,7 +17,7 @@ INDEX_URL = (
     f"{BASE_URL}/stocks/{TICKER.lower()}/transcripts/"
 )
 
-OUTPUT_DIR = "transcripts"
+OUTPUT_DIR = os.path.join("transcripts", TICKER.upper())
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -142,55 +142,52 @@ for i, link in enumerate(links, 1):
         )
 
 
-    # -----------------------------
-    # Folder name
+      # -----------------------------
+    # Create filename
+    # Format: YYYY-Mon-DD-TICKER.txt
     # -----------------------------
 
-    match = re.search(
-        r'q([1-4])-(\d{4})',
-        link,
-        re.IGNORECASE
+    filename = None
+
+    # Try to extract a date such as "Apr 24, 2025" from the title
+    date_match = re.search(
+        r'([A-Z][a-z]{2})\s+(\d{1,2}),\s+(\d{4})',
+        title
     )
 
-
-    if match:
-
-        quarter, year = match.groups()
-
-        folder_name = (
-            f"{year}-Q{quarter}-{TICKER.upper()}"
-        )
+    if date_match:
+        month, day, year = date_match.groups()
+        filename = f"{year}-{month}-{int(day):02d}-{TICKER.upper()}.txt"
 
     else:
-
-        folder_name = (
-            f"Unknown-{TICKER.upper()}"
+        # Fallback: use year and quarter from the URL
+        q_match = re.search(
+            r'q([1-4])-(\d{4})',
+            link,
+            re.IGNORECASE
         )
 
-
-    folder_path = os.path.join(
-        OUTPUT_DIR,
-        folder_name
-    )
-
-
-    os.makedirs(
-        folder_path,
-        exist_ok=True
-    )
+        if q_match:
+            quarter, year = q_match.groups()
+            filename = f"{year}-Q{quarter}-{TICKER.upper()}.txt"
+        else:
+            filename = f"Unknown-{TICKER.upper()}.txt"
 
 
     # -----------------------------
     # Save transcript
     # -----------------------------
 
+    file_path = os.path.join(OUTPUT_DIR, filename)
+
     with open(
-        os.path.join(folder_path, "transcript.txt"),
+        file_path,
         "w",
         encoding="utf-8"
     ) as f:
-
         f.write(transcript)
+
+    print(f"Saved: {file_path}")
 
 
     time.sleep(2)
