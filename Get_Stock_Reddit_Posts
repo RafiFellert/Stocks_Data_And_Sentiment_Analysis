@@ -8,9 +8,9 @@ from datetime import datetime
 # BRIGHT DATA
 # ============================================================
 
-API_KEY = <Your Bright Data API Key>
-DATASET_ID = "Your Bright Data Data Set ID"
-BASE_URL = "Your Bright Data Base URL"
+API_KEY = "<Your Bright Data API Key>"
+DATASET_ID = "<Your Bright Data Data Set ID>"
+BASE_URL = "<Your Bright Data Base URL>"
 
 # ============================================================
 # SETTINGS
@@ -20,11 +20,11 @@ KEYWORD = <Stock Ticker>
 NUM_POSTS = <Num of Posts You Want to Download"
 
 # Target filter settings
-TARGET_YEAR = 2026
-TARGET_MONTH = 4  # April
+TARGET_YEAR = <YYYY>
+TARGET_MONTH = <MM>
 
-OUTPUT_FILE = <file name>
-RAW_JSON_FILE = <file name>
+OUTPUT_FILE = "<file name>"
+RAW_JSON_FILE = "<file name>"
 
 # ============================================================
 # HEADERS
