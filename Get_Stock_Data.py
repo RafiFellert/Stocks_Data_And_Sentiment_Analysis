@@ -1,14 +1,15 @@
 from datetime import datetime, timedelta
 import yfinance as yf
 import pandas as pd
+import numpy as np
 import requests
 from io import StringIO
 
 # 1. Defining range of dates for data collection
-start_date = "2026-01-15"
-end_date = "2026-02-15"
+start_date = "<YYYY-MM-DD>"
+end_date = "<YYYY-MM-DD>"
 # 2. Defining the target stock
-ticker = "MXL"
+ticker = "<TICKER_NAME>"
 
 # 3. Downloading data from yahoo finance
 print(f"Downloading data for {ticker}...")
@@ -48,18 +49,14 @@ try:
             
             for url in finra_urls:
                 try:
-                    # ביצוע בקשת GET עם ה-Headers המאושרים
                     response = requests.get(url, headers=headers, timeout=10)
                     
                     if response.status_code == 200 and response.text:
-                        # קריאת הטקסט מתוך הזיכרון
                         df_daily = pd.read_csv(StringIO(response.text), sep='|', skipfooter=1, engine='python')
                         
-                        # ניקוי כותרות ורווחים
                         df_daily.columns = [c.strip() for c in df_daily.columns]
                         df_daily['Symbol'] = df_daily['Symbol'].astype(str).str.strip().str.upper()
                         
-                        # חיפוש MXL
                         df_ticker = df_daily[df_daily['Symbol'] == ticker.upper()]
                         
                         if not df_ticker.empty:
@@ -71,9 +68,9 @@ try:
                                 'ShortVolume': short_vol,
                                 'TotalVolume': total_vol
                             })
-                            break  # Data was fetched for this day. Moving to the next day
+                            break
                 except Exception:
-                    continue  # We weren't able to fetch from this URL. Moving to the next one
+                    continue
                     
         current_dt += timedelta(days=1)
 
@@ -88,12 +85,11 @@ except Exception as e:
     print(f"Error: Static server didn't fetch relevant data: {e}")
     has_real_short = False
 
-# 5. מיזוג נתוני השורט וחישוב היחס היומי
+# 6. Merging short data and calculating short ratio
 if has_real_short:
-    print("ממזג ומחשב יחס שורט יומי אמיתי...")
+    print("Merging and calculating real short ratio...")
     df_final = pd.merge(df_prices, df_short_api, on='Date', how='left')
     
-    # השלמת ימי מסחר חסרים (חגים/ימים ללא דיווח שורט)
     df_final['ShortVolume'] = df_final['ShortVolume'].ffill().bfill()
     df_final['TotalVolume'] = df_final['TotalVolume'].ffill().bfill()
     
@@ -106,8 +102,25 @@ else:
     df_prices['TotalVolume'] = volume_series.astype(int)
     df_final = df_prices
 
-# Sorting by date
-df_final = df_final.sort_values(by='Date', ascending=False)
+# 7. Add Percentage_Change_%, Stock_Sentiment, and reorder columns
+df_final['Percentage_Change_%'] = (((df_final['Close'] - df_final['Open']) / df_final['Open']) * 100).round(2)
+
+# Up if > 5%, Down if < -5%, Neutral for values in between [-5%, 5%]
+conditions = [
+    df_final['Percentage_Change_%'] > 5,
+    df_final['Percentage_Change_%'] < -5
+]
+choices = ["Up", "Down"]
+df_final['Stock_Sentiment'] = np.select(conditions, choices, default="Neutral")
+
+export_columns = [
+    'Date', 'Open', 'Close', 'Volume', 
+    'Stock_Sentiment', 'Percentage_Change_%', 'Daily_Short_Ratio_%', 'ShortVolume'
+]
+df_final = df_final[export_columns]
+
+# Sorting by date (descending)
+df_final = df_final.sort_values(by='Date', ascending=True)
 
 # Exporting to excel file
 filename = f"{ticker}_daily_prices_fixed.xlsx"
