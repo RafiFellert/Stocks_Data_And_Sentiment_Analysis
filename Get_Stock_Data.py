@@ -2,12 +2,11 @@ from datetime import datetime, timedelta
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import requests
-from io import StringIO
 
 # 1. Defining range of dates for data collection
 start_date = "<YYYY-MM-DD>"
 end_date = "<YYYY-MM-DD>"
+
 # 2. Defining the target stock
 ticker = "<TICKER_NAME>"
 
@@ -15,114 +14,22 @@ ticker = "<TICKER_NAME>"
 print(f"Downloading data for {ticker}...")
 df_prices = yf.download(ticker, start=start_date, end=end_date)
 
-# 4. Modifying the MultiIndex to columns
+# 4. Modifying the MultiIndex to columns (handles newer yfinance formats)
 if isinstance(df_prices.columns, pd.MultiIndex):
     df_prices.columns = df_prices.columns.get_level_values(0)
 
-# 5. Extracting the date
+# 5. Extracting and formatting the date
 df_prices = df_prices.reset_index()
 df_prices['Date'] = pd.to_datetime(df_prices['Date']).dt.strftime('%Y-%m-%d')
 
-print(f"Downloading data from FINRA for stock {ticker}...")
-short_data_list = []
+# 6. Selecting only the desired columns (Fixed df_prices -> df_final)
+export_columns = ['Date', 'Open', 'Close', 'Volume']
+df_final = df_prices[export_columns]
 
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-}
-
-try:
-    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-    end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-    current_dt = start_dt
-    
-    while current_dt <= end_dt:
-        if current_dt.weekday() < 5:  # Only working days
-            date_str = current_dt.strftime("%Y%m%d")
-            date_dash = current_dt.strftime("%Y-%m-%d")
-            
-            # Searching the different sources
-            finra_urls = [
-                f"https://regsho.finra.org/CNMSshvol{date_str}.txt",
-                f"https://regsho.finra.org/FNYXshvol{date_str}.txt",
-                f"https://regsho.finra.org/FNSQshvol{date_str}.txt"
-            ]
-            
-            for url in finra_urls:
-                try:
-                    response = requests.get(url, headers=headers, timeout=10)
-                    
-                    if response.status_code == 200 and response.text:
-                        df_daily = pd.read_csv(StringIO(response.text), sep='|', skipfooter=1, engine='python')
-                        
-                        df_daily.columns = [c.strip() for c in df_daily.columns]
-                        df_daily['Symbol'] = df_daily['Symbol'].astype(str).str.strip().str.upper()
-                        
-                        df_ticker = df_daily[df_daily['Symbol'] == ticker.upper()]
-                        
-                        if not df_ticker.empty:
-                            short_vol = int(df_ticker['ShortVolume'].values[0])
-                            total_vol = int(df_ticker['TotalVolume'].values[0])
-                            
-                            short_data_list.append({
-                                'Date': date_dash,
-                                'ShortVolume': short_vol,
-                                'TotalVolume': total_vol
-                            })
-                            break
-                except Exception:
-                    continue
-                    
-        current_dt += timedelta(days=1)
-
-    if short_data_list:
-        df_short_api = pd.DataFrame(short_data_list)
-        has_real_short = True
-        print(f"Download completed! Data was found for {len(df_short_api)} trading days.")
-    else:
-        raise Exception("Error: Ticker was not found in the returned answer")
-
-except Exception as e:
-    print(f"Error: Static server didn't fetch relevant data: {e}")
-    has_real_short = False
-
-# 6. Merging short data and calculating short ratio
-if has_real_short:
-    print("Merging and calculating real short ratio...")
-    df_final = pd.merge(df_prices, df_short_api, on='Date', how='left')
-    
-    df_final['ShortVolume'] = df_final['ShortVolume'].ffill().bfill()
-    df_final['TotalVolume'] = df_final['TotalVolume'].ffill().bfill()
-    
-    df_final['Daily_Short_Ratio_%'] = ((df_final['ShortVolume'] / df_final['TotalVolume']) * 100).round(2)
-else:
-    print("Using alternative dynamic short estimator...")
-    volume_series = df_prices['Volume'].squeeze()
-    df_prices['Daily_Short_Ratio_%'] = (45.0 + (volume_series / volume_series.mean()) * 3.5).round(2).clip(30.0, 68.0)
-    df_prices['ShortVolume'] = (volume_series * (df_prices['Daily_Short_Ratio_%'] / 100)).astype(int)
-    df_prices['TotalVolume'] = volume_series.astype(int)
-    df_final = df_prices
-
-# 7. Add Percentage_Change_%, Stock_Sentiment, and reorder columns
-df_final['Percentage_Change_%'] = (((df_final['Close'] - df_final['Open']) / df_final['Open']) * 100).round(2)
-
-# Up if > 5%, Down if < -5%, Neutral for values in between [-5%, 5%]
-conditions = [
-    df_final['Percentage_Change_%'] > 5,
-    df_final['Percentage_Change_%'] < -5
-]
-choices = ["Up", "Down"]
-df_final['Stock_Sentiment'] = np.select(conditions, choices, default="Neutral")
-
-export_columns = [
-    'Date', 'Open', 'Close', 'Volume', 
-    'Stock_Sentiment', 'Percentage_Change_%', 'Daily_Short_Ratio_%', 'ShortVolume'
-]
-df_final = df_final[export_columns]
-
-# Sorting by date (descending)
+# 7. Sorting by date (ascending)
 df_final = df_final.sort_values(by='Date', ascending=True)
 
-# Exporting to excel file
-filename = f"{ticker}_daily_prices_fixed.xlsx"
+# 8. Exporting to excel file
+filename = f"{ticker}_daily_prices.xlsx"
 df_final.to_excel(filename, index=False, sheet_name=f"{ticker} Data")
 print(f"The new file was saved as: {filename}")
